@@ -46,6 +46,10 @@ else
     echo "Interface réseau détectée : $NET_IF"
 fi
 
+# --- Installation des paquets nécessaires pour le groupe cups ---
+echo "Installation des composants pour imprimante/scanner HP Deskjet F2420..."
+pkg install -y cups hplip sane-backends
+
 # --- Configuration de l'utilisateur ---
 echo "Entrez le nom de l'utilisateur principal :"
 read USERNAME
@@ -86,7 +90,7 @@ pkg upgrade -y
 freebsd-update fetch
 freebsd-update install
 
-# --- Installation des paquets ---
+# --- Installation des autres paquets ---
 echo "Installation de Xorg, MATE et SDDM..."
 pkg install -y xorg mate sddm
 
@@ -138,9 +142,6 @@ pkg install -y pulseaudio
 
 echo "Installation de auditd..."
 pkg install -y auditd
-
-echo "Installation des composants pour imprimante/scanner HP Deskjet F2420..."
-pkg install -y cups hplip sane-backends
 
 # --- Configuration du système ---
 echo "Configuration de PAM pour SDDM..."
