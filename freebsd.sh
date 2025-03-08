@@ -46,14 +46,12 @@ else
     echo "Interface réseau détectée : $NET_IF"
 fi
 
-# --- Installation des paquets nécessaires pour le groupe cups ---
-echo "Installation des composants pour imprimante/scanner HP Deskjet F2420..."
-pkg install -y cups hplip sane-backends
+
 
 # --- Configuration de l'utilisateur ---
 echo "Entrez le nom de l'utilisateur principal :"
 read USERNAME
-pw user add -n "$USERNAME" -c "Main User" -m -G wheel,cups
+pw user add -n "$USERNAME" -c "$USERNAME" -m -G wheel
 echo "Mot de passe pour $USERNAME :"
 passwd "$USERNAME"
 
@@ -100,27 +98,34 @@ if [ ! -f "/usr/local/share/xsessions/mate.desktop" ]; then
     pkg install -y mate
 fi
 
-echo "Installation de Firefox..."
-pkg install -y firefox
 
-echo "Installation des outils de développement..."
-pkg install -y rust python3 gcc clang git neovim gmake
+echo "Installation et configuration de sudo..."
+pkg install -y sudo
+
+echo "Installation du pilote Nvidia..."
+pkg install -y nvidia-driver nvidia-settings
+sysrc kld_list+="nvidia nvidia-modeset"
+echo 'nvidia_load="YES"' >> /boot/loader.conf
+
+echo "Installation de Firefox..."
+pkg install -y firefox-esr
+
+echo "Installation de PulseAudio..."
+pkg install -y pulseaudio
 
 echo "Installation d'OpenVPN..."
 pkg install -y openvpn
 
-echo "Installation et configuration de Bluetooth..."
-pkg install -y bluez-firmware bluez-utils
-
-echo "Installation de VSCode..."
-pkg install -y code
+echo "Installation des outils de développement..."
+pkg install -y code rust python3 gcc clang git gmake
+echo "set path = (/sbin /bin /usr/sbin /usr/bin /usr/local/sbin /usr/local/bin /home/'$USERNAME'/.cargo/bin)" >> /home/$USERNAME/.shrc
 
 echo "Installation des outils Rust supplémentaires..."
 pkg install -y rust-analyzer
 cargo install clippy rustfmt
 
-echo "Installation et configuration de sudo..."
-pkg install -y sudo
+echo "Installation et configuration de Bluetooth..."
+pkg install -y bluez-firmware bluez-utils
 
 echo "Installation de vulkan-tools..."
 pkg install -y vulkan-tools
@@ -137,11 +142,15 @@ pkg install -y docker-freebsd
 echo "Installation de iperf3..."
 pkg install -y iperf3
 
-echo "Installation de PulseAudio..."
-pkg install -y pulseaudio
-
 echo "Installation de auditd..."
 pkg install -y auditd
+
+echo "Installation des composants pour imprimante/scanner HP Deskjet F2420..."
+pkg install -y cups hplip sane-backends
+
+echo "Installation de d'autres outils..."
+pkg install -y webfonts qjackctl artwiz-fonts nerd-fonts sctd
+
 
 # --- Configuration du système ---
 echo "Configuration de PAM pour SDDM..."
@@ -151,6 +160,14 @@ auth        required      pam_deny.so
 account     required      pam_unix.so
 session     required      pam_permit.so
 EOF
+
+echo "Configuration des groupes pour $USERNAME..."
+pw groupmod video -m $USERNAME
+pw groupmod realtime -m $USERNAME
+pw groupmod operator -m $USERNAME
+pw groupmod wheel -m $USERNAME
+pw groupmod network -m $USERNAME
+pw groupmod cups -m $USERNAME
 
 echo "Configuration de SDDM pour connexion automatique et clavier français..."
 mkdir -p /usr/local/etc/sddm.conf.d
@@ -196,19 +213,7 @@ sysrc docker_enable="YES"
 sysrc pulseaudio_enable="YES"
 sysrc auditd_enable="YES"
 sysrc cupsd_enable="YES"
-
-echo "Démarrage initial des services nécessaires..."
-service dbus start
-service hald start
-service sddm start
-
-echo "Configuration de CUPS et HPLIP pour HP Deskjet F2420..."
-service cupsd start
-hp-setup -i
-
-echo "Configuration de SANE pour le scanner..."
 sysrc saned_enable="YES"
-service saned start
 
 if [ "$INSTALL_TYPE" = "2" ]; then
     echo "Détection des interfaces Wi-Fi..."
@@ -270,6 +275,7 @@ net.inet.tcp.rfc1323=1
 net.inet.tcp.delayed_ack=0
 kern.maxfiles=65536
 kern.maxfilesperproc=32768
+kern.ipc.shmmax=536870912
 vfs.zfs.arc_max=$ZFS_ARC_MAX
 vfs.zfs.trim.enabled=1
 security.bsd.see_other_uids=0
@@ -277,10 +283,7 @@ security.bsd.see_other_gids=0
 hw.intel_microcode_update=1
 EOF
 sysctl -f /etc/sysctl.conf
-
-echo "Installation du pilote Nvidia..."
-pkg install -y nvidia-driver
-sysrc kld_list+="nvidia nvidia-modeset"
+echo 'sem_load="YES"' >> /boot/loader.conf
 
 echo "Configuration du pare-feu PF avec l'interface $NET_IF..."
 cat << EOF > /etc/pf.conf
