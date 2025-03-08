@@ -53,6 +53,12 @@ pw user add -n "$USERNAME" -c "Main User" -m -G wheel,cups
 echo "Mot de passe pour $USERNAME :"
 passwd "$USERNAME"
 
+# Vérification que l'utilisateur existe
+if ! id "$USERNAME" >/dev/null 2>&1; then
+    echo "Erreur : L'utilisateur $USERNAME n'a pas été créé correctement. Sortie du script."
+    exit 1
+fi
+
 # --- Configuration de base du système ---
 echo "Configuration automatique du fuseau horaire..."
 tzsetup
@@ -83,6 +89,12 @@ freebsd-update install
 # --- Installation des paquets ---
 echo "Installation de Xorg, MATE et SDDM..."
 pkg install -y xorg mate sddm
+
+# Vérification que la session MATE est installée
+if [ ! -f "/usr/local/share/xsessions/mate.desktop" ]; then
+    echo "Erreur : Session MATE non détectée. Réinstallation..."
+    pkg install -y mate
+fi
 
 echo "Installation de Firefox..."
 pkg install -y firefox
@@ -131,21 +143,24 @@ echo "Installation des composants pour imprimante/scanner HP Deskjet F2420..."
 pkg install -y cups hplip sane-backends
 
 # --- Configuration du système ---
+echo "Configuration de PAM pour SDDM..."
+cat << EOF > /etc/pam.d/sddm
+auth        sufficient    pam_unix.so
+auth        required      pam_deny.so
+account     required      pam_unix.so
+session     required      pam_permit.so
+EOF
+
 echo "Configuration de SDDM pour connexion automatique et clavier français..."
 mkdir -p /usr/local/etc/sddm.conf.d
-cat << EOF > /usr/local/etc/sddm.conf.d/autologin.conf
+cat << EOF > /usr/local/etc/sddm.conf.d/sddm.conf
 [Autologin]
 User=$USERNAME
 Session=mate.desktop
-EOF
-cat << EOF > /usr/local/etc/sddm.conf.d/keyboard.conf
-[General]
-InputMethod=
-Numlock=on
 
-[X11]
-ServerArguments=-nolisten tcp
-KeyboardLayout=fr
+[General]
+Numlock=on
+X11Keyboard=fr
 EOF
 
 if [ "$INSTALL_TYPE" = "1" ] || [ "$INSTALL_TYPE" = "2" ]; then
@@ -180,6 +195,11 @@ sysrc docker_enable="YES"
 sysrc pulseaudio_enable="YES"
 sysrc auditd_enable="YES"
 sysrc cupsd_enable="YES"
+
+echo "Démarrage initial des services nécessaires..."
+service dbus start
+service hald start
+service sddm start
 
 echo "Configuration de CUPS et HPLIP pour HP Deskjet F2420..."
 service cupsd start
@@ -273,7 +293,7 @@ sysrc pf_enable="YES"
 service pf start
 
 echo "Configuration des mises à jour automatiques..."
-echo "0 0 * * 0 root pkg upgrade -y" >> /etc/crontab
+echo "0 0 * * * root pkg upgrade -y" >> /etc/crontab
 
 echo "Installation et configuration terminées avec succès !"
 echo "Redémarrez le système avec 'reboot' pour appliquer tous les changements."
