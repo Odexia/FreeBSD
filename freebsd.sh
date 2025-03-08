@@ -200,6 +200,9 @@ EOF
 echo "%wheel ALL=(ALL) ALL" > /usr/local/etc/sudoers.d/wheel
 
 echo "Configuration des services dans rc.conf..."
+sysrc zfs_enable="YES" #Raid
+sysrc kld_list+=linux linux64 #Module Linux
+sysrc linux_enable="YES" #Kernel linux load
 sysrc sshd_enable="YES"
 sysrc ntpd_enable="YES"
 sysrc dbus_enable="YES"
@@ -214,6 +217,18 @@ sysrc pulseaudio_enable="YES"
 sysrc auditd_enable="YES"
 sysrc cupsd_enable="YES"
 sysrc saned_enable="YES"
+sysrc update_motd="NO"
+sysrc rc_startmsgs="NO"
+sysrc ntpd_enable="YES"
+sysrc ntpdate_enable="YES"
+sysrc syslogd_flags="-ss"
+sysrc dumpdev="NO"
+sysrc clear_tmp_enable="YES"
+sysrc sendmail_enable="NONE"
+sysrc sendmail_msp_queue_enable="NO"
+sysrc sendmail_outbound_enable="NO"
+sysrc sendmail_submit_enable="NO"
+sysrc microcode_update_enable="YES"
 
 if [ "$INSTALL_TYPE" = "2" ]; then
     echo "Détection des interfaces Wi-Fi..."
